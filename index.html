@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Собери 10 — режимы с подсказками и выходом</title>
+<style>
+:root{--bg:#0e1222;--card:#1b2541;--accent:#a3e7c5;--text:#eaf2ff}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;min-height:100vh;}
+main{width:min(100%,720px);margin:0 auto;padding:16px}
+header{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:8px 0}
+.tag{font-size:11px;letter-spacing:2px;color:var(--accent)}
+h1{font-size:34px;margin:6px 0}
+.subtitle{color:#cbd6f8;opacity:.9;margin:4px 0 12px}
+.home-card{background:linear-gradient(135deg,#273453,#1b2140);border:1px solid #303958;border-radius:20px;padding:16px;margin:12px 0;box-shadow:0 6px 18px #0008}
+.home-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:6px}
+.action{padding:12px 14px;border-radius:12px;border:1px solid #39467d;background:#2a3471;color:white;font-weight:700;min-width:180px;text-align:center;cursor:pointer}
+.primary{background:#a3e7c5;color:#102c24;border-color:#a3e7c5}
+section{margin:8px 0}
+.board{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin:14px 0}
+.tile{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:clamp(22px,6vw,32px);font-weight:800;border-radius:16px;border:1px solid #3b476d;background:#242f50;color:white;box-shadow:0 4px 0 #080d1e;transition: transform .12s, background .12s}
+.tile.selected{background:#a3e7c5;color:#102c24;border-color:#a3e7c5;transform:translateY(3px);box-shadow:none}
+.tile:disabled{opacity:.6}
+.tile.hint{outline:3px solid #ffcf77; outline-offset:-6px}
+.status{min-height:58px;font-size:14px;line-height:1.5;color:#d3dbef;background:#1c2550;border-radius:12px;padding:10px 12px}
+.sum{display:flex;justify-content:space-between;align-items:center;background:#1d2541;border-radius:12px;padding:12px 14px;margin:10px 0}
+.timer{font-family: ui-monospace,SFMono-Regular,Monaco,Consolas,monospace;font-weight:700;border:1px solid #3b476d;border-radius:8px;padding:6px 12px;background:#1d2541}
+.overlay{position:fixed;inset:0;background:rgba(9,13,32,.7);display:grid;place-items:center;z-index:5;padding:20px}
+.overlay[hidden]{display:none}
+.dialog{width:min(100%,520px);max-height:80vh;overflow:auto;background:#202b48;border-radius:16px;border:1px solid #46567a;padding:20px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);top:12px;background:#d3ffdf;color:#0b3a1b;border:1px solid #2e9a55;border-radius:12px;padding:8px 14px;font-weight:800;box-shadow:0 6px 20px #0006;z-index:6;display:none}
+.success{ animation:pop .6s ease-out; }
+@keyframes pop{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.08);opacity:1}100%{transform:scale(1);opacity:1}}
+.board-wrap{position:relative}
+@media(prefers-reduced-motion:reduce){.tile,.toast{transition:none}.success{animation:none}}
+@media(max-width:600px){.action{min-width:140px}.sum{flex-direction:column}.timer{margin-left:0}}
+[hidden]{display:none!important}main{max-width:500px}header{flex-wrap:wrap}.board-wrap{display:block!important}.board{width:100%}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}.stat{background:#1d2541;padding:12px;border-radius:12px}.stat span{display:block;font-size:12px}.stat strong{font-size:24px}.tile{position:relative;cursor:pointer}.tile.hint:after{content:attr(data-order);position:absolute;right:5px;top:3px;font-size:12px;color:#ffcf77}.action{min-height:48px;font:inherit;font-weight:700;touch-action:manipulation}.action:disabled{opacity:.45}button:focus-visible,select:focus-visible{outline:3px solid white;outline-offset:3px}.timer.urgent{color:#ffb4ab;border-color:#ffb4ab}.sum{flex-direction:row}.toast{pointer-events:none}.home-actions{flex-direction:column}.home-actions .action{width:100%}
+.ranking-table{width:100%;border-collapse:collapse;font-size:14px}.ranking-table td,.ranking-table th{padding:10px 5px;border-bottom:1px solid #46567a;text-align:left;overflow-wrap:anywhere}.ranking-table td:nth-child(3){font-weight:700;color:#a3e7c5}.rank-note{color:#cbd6f8;font-size:13px;line-height:1.5}.rank-controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.rank-controls select,.player-input{background:#242f50;color:white;border:1px solid #607298;padding:12px;border-radius:10px;max-width:100%;font:inherit}.player-input{width:100%;margin:8px 0}.dialog{width:min(100%,520px)}
+
+.bottom-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:stretch;width:100%;margin:12px 0 0}
+.bottom-actions>.action{width:100%;min-width:0;min-height:52px;margin:0;display:flex;align-items:center;justify-content:center;padding:12px 8px;line-height:1.35}
+.bottom-actions>#restart,.bottom-actions>#finishInfinity{grid-column:1 / -1}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>Собери <span style="color:#a3e7c5">10</span></h1>
+  <div class="timer" id="modeDisplay" aria-label="Текущий режим">Режим: Обычный</div>
+</header>
+<div class="toast" id="toast" aria-live="polite"></div>
+<div id="home" class="home-card" aria-label="Главное меню">
+  <h2 style="margin:0 0 8px">Главное меню</h2>
+  <p class="subtitle">Выберите режим, настройте время и начните гонку за рекордом.</p>
+  <label for="playerName">Имя игрока</label><input id="playerName" class="player-input" maxlength="24" placeholder="Игрок" autocomplete="nickname"><div class="home-actions">
+    <select id="modeSelect" aria-label="Выбор режима" class="action" style="min-width:260px;">
+      <option value="normal">Обычный</option>
+      <option value="time">На время</option>
+      <option value="infinity">Бесконечность</option>
+    </select>
+    <button id="start" class="action primary">Начать игру</button>
+    <button id="rankBtn" class="action">Лидеры и рекорды</button><button id="rulesBtn" class="action">Как играть</button>
+    <button id="resume" class="action" hidden>Продолжить игру</button>
+  </div>
+  <div id="timeControls" hidden style="text-align:center;margin-top:8px">
+    <label for="timeLimit">Время (сек):</label>
+    <input type="number" id="timeLimit" min="10" max="300" step="10" value="60" style="width:78px;margin-left:6px;">
+  </div>
+</div>
+<section id="game" hidden aria-label="Игра">
+  <div class="board-wrap" style="display:flex;flex-direction:column;align-items:center;gap:8px">
+    <div id="board" class="board" aria-label="Игровое поле"></div>
+    <div class="sum"><span>Сумма цепочки</span><strong id="sum">0</strong><span> / 10</span></div>
+  </div>
+  <div id="timerDisplay" class="timer" hidden aria-label="Осталось времени"></div><div class="stats" aria-label="Игра">
+    <div class="stat"><span>Очки</span><strong id="score">0</strong></div>
+    <div class="stat"><span>Ходы</span><strong id="moves">20</strong></div>
+    <div class="stat"><span>Лучшее</span><strong id="best">0</strong></div>
+  </div>
+  <div id="status" class="status" role="status" aria-live="polite">Нажми на число, чтобы начать цепочку.</div>
+  <div class="bottom-actions" aria-label="Управление игрой">
+<button id="clear" class="action">Снять выбор</button>
+<button id="hint" class="action">Подсказка · 3</button>
+<button id="restart" class="action primary">Новая игра</button>
+<button id="gameRules" class="action">Как играть</button>
+<button id="toMenu" class="action">Главное меню</button>
+<button id="finishInfinity" class="action" hidden>Завершить и записать результат</button>
+  </div>
+</section>
+</main><div id="rulesModal" class="overlay" hidden role="dialog" aria-label="Правила">
+  <section class="dialog" aria-labelledby="rulesTitle">
+    <h2 id="rulesTitle">Как играть</h2>
+    <ol class="rules" style="margin:0 0 12px 0; padding-left:18px; line-height:1.6">
+      <li><strong>Нажми на любое число.</strong> Это начало цепочки. Нажимай клетки по одной — проводить пальцем не нужно.</li>
+      <li><strong>Добавляй соседние клетки.</strong> Следующая должна быть рядом с последней (сверху, снизу, слева или справа). Диагонали не допускаются.</li>
+      <li><strong>Собери ровно 10.</strong> Цепочка засчитывается автоматически, а выбранные числа заменяются новыми.</li>
+      <li><strong>Собирай длинные цепочки.</strong> Числа в выбранных клетках в сумме дают 10.</li>
+      <li><strong>Обычный режим:</strong> 20 успешных цепочек. Ошибки не тратят ходы.</li><li><strong>На время:</strong> набери больше очков за выбранное время. Количество цепочек не ограничено.</li><li><strong>Бесконечность:</strong> играй без ограничений по ходам и времени.</li><li><strong>Подсказка:</strong> 3 на раунд. Нажимай выделенные клетки по номерам.</li><li>Повторное нажатие на выбранную клетку отменяет её и продолжение цепочки.</li><li>В меню, правилах и при скрытии вкладки таймер ставится на паузу. Раунд сохраняется в этом браузере. Рекорды режима на время отдельные для каждой длительности.</li>
+    </ol>
+    <button id="closeRules" class="action primary">Закрыть</button>
+  </section>
+</div>
+<div id="overlay" class="overlay" hidden>
+  <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+    <h2 id="dialogTitle">Игра окончена</h2>
+    <p id="dialogText" style="margin:0 0 12px">Ваш результат сохранён. Готовы к новой попытке?</p>
+    <button id="confirm" class="action primary">Играть снова</button>
+    <button id="cancel" class="action" style="margin-top:6px">Главное меню</button>
+  </section>
+</div>
+<div id="rankModal" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="rankTitle"><section class="dialog"><h2 id="rankTitle">Лидеры и рекорды</h2><p class="rank-note">Локальная таблица этого браузера. Учитываются завершённые раунды. У каждого имени — один лучший результат в выбранной категории. Это не общий рейтинг VK.</p><div class="rank-controls"><select id="rankMode" aria-label="Режим таблицы"><option value="normal">Обычный</option><option value="time">На время</option><option value="infinity">Бесконечность</option></select><select id="rankDuration" aria-label="Длительность раунда"></select></div><p id="personalRecord"></p><table class="ranking-table"><thead><tr><th>№</th><th>Игрок</th><th>Очки</th><th>Дата</th></tr></thead><tbody id="rankRows"></tbody></table><p id="rankEmpty" class="rank-note">Заверши первый раунд, чтобы появился результат.</p><p class="rank-note">Результаты не переносятся на другие устройства и могут исчезнуть при очистке данных браузера.</p><button id="closeRank" class="action primary">Закрыть</button></section></div><script>
+'use strict';
+const $=id=>document.getElementById(id), modes=['normal','time','infinity'];
+let round=null, highlight=[], running=false, lastTick=0, toastTimer, focusBefore=null;
+const key=m=>'collect10.fixed.round.'+m;
+const bestKey=r=>'collect10.fixed.best.'+r.mode+(r.mode==='time'?'.'+r.duration:'');
+function read(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}}
+function write(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+function adjacent(a,b){return Math.abs(Math.floor(a/5)-Math.floor(b/5))+Math.abs(a%5-b%5)===1}
+function neighbors(i){return [i-5,i+5,i-1,i+1].filter(j=>j>=0&&j<25&&adjacent(i,j))}
+function random(){return 1+Math.floor(Math.random()*9)}
+function solution(){function search(p,n){if(n===10)return p;for(const j of neighbors(p[p.length-1]))if(!p.includes(j)&&n+round.cells[j]<=10){const f=search([...p,j],n+round.cells[j]);if(f)return f}return null}for(let i=0;i<25;i++){const f=search([i],round.cells[i]);if(f)return f}return null}
+function ensureMove(){if(!solution()){const a=Math.floor(Math.random()*25),b=neighbors(a)[0];round.cells[a]=random();round.cells[b]=10-round.cells[a]}}
+function valid(r,m){return r&&r.mode===m&&Array.isArray(r.cells)&&r.cells.length===25&&r.cells.every(x=>Number.isInteger(x)&&x>0&&x<10)&&Array.isArray(r.path)&&new Set(r.path).size===r.path.length&&r.path.every((x,i)=>Number.isInteger(x)&&x>=0&&x<25&&(!i||adjacent(r.path[i-1],x)))&&r.path.reduce((n,i)=>n+r.cells[i],0)<10&&Number.isInteger(r.score)&&r.score>=0&&Number.isInteger(r.solved)&&r.solved>=0&&Number.isInteger(r.hints)&&r.hints>=0&&r.hints<=3&&Number.isFinite(r.remaining)&&r.remaining>=0&&Number.isInteger(r.duration)&&r.duration>=10&&r.duration<=300&&!r.ended&&(m!=='normal'||r.solved<20)&&(m!=='time'||r.remaining>0)}
+function saved(m){const r=read(key(m));return valid(r,m)?r:null}
+function persist(){if(round)write(key(round.mode),round)}
+function status(t){$('status').textContent=t}
+function modeName(m){return {normal:'Обычный',time:'На время',infinity:'Бесконечность'}[m]}
+function menuUpdate(){const m=$('modeSelect').value;$('timeControls').hidden=m!=='time';$('resume').hidden=!saved(m);$('modeDisplay').textContent=modeName(m)}
+function updateClock(){if(!round)return;$('timerDisplay').hidden=round.mode!=='time';$('timerDisplay').textContent='Осталось: '+Math.ceil(round.remaining/1000)+' сек';$('timerDisplay').classList.toggle('urgent',round.remaining<=10000)}
+function render(){if(!round)return;$('finishInfinity').hidden=round.mode!=='infinity'||round.ended;[...$('board').children].forEach((b,i)=>{b.textContent=round.cells[i];b.className='tile'+(round.path.includes(i)?' selected':'')+(highlight.includes(i)?' hint':'');b.dataset.order=highlight.indexOf(i)+1;b.disabled=round.ended;b.setAttribute('aria-pressed',String(round.path.includes(i)));b.setAttribute('aria-label',`Строка ${Math.floor(i/5)+1}, столбец ${i%5+1}, число ${round.cells[i]}`)});$('sum').textContent=round.path.reduce((n,i)=>n+round.cells[i],0);$('score').textContent=round.score;$('moves').textContent=round.mode==='normal'?20-round.solved:'∞';$('best').textContent=Math.max(round.score,Number(read(bestKey(round)))||0);$('hint').textContent='Подсказка · '+round.hints;$('hint').disabled=!round.hints||round.ended;$('clear').disabled=!round.path.length||round.ended;updateClock()}
+function tick(){if(!running||!round||round.ended)return;const now=performance.now();if(round.mode==='time'){round.remaining=Math.max(0,round.remaining-(now-lastTick));updateClock();if(!round.remaining){finish();return}}lastTick=now}
+function pause(){tick();running=false;persist()}
+function activate(){if(round&&!round.ended&&!document.hidden&&!$('game').hidden&&$('rulesModal').hidden&&$('overlay').hidden&&$('rankModal').hidden){lastTick=performance.now();running=true}}
+function openGame(){highlight=[];$('home').hidden=true;$('game').hidden=false;$('modeDisplay').textContent=modeName(round.mode);render();activate();$('toMenu').focus();window.scrollTo(0,0)}
+function home(){pause();$('overlay').hidden=true;$('rulesModal').hidden=true;document.querySelector('main').removeAttribute('inert');$('home').hidden=false;$('game').hidden=true;menuUpdate();$('start').focus()}
+function start(){pause();const m=$('modeSelect').value;let duration=Number($('timeLimit').value);duration=Number.isFinite(duration)?Math.max(10,Math.min(300,Math.round(duration))):60;round={player:playerName(),mode:m,cells:Array.from({length:25},random),path:[],score:0,solved:0,hints:3,duration,remaining:duration*1000,ended:false};highlight=[];ensureMove();persist();status('Нажми на число, чтобы начать цепочку.');openGame()}
+function finish(){if(!round||round.ended)return;recordResult();running=false;round.ended=true;round.path=[];highlight=[];persist();render();$('dialogTitle').textContent=round.mode==='time'?'Время вышло':'Игра завершена';$('dialogText').textContent=`Результат: ${round.score}. Рекорд: ${$('best').textContent}.`;$('overlay').hidden=false;document.querySelector('main').setAttribute('inert','');$('confirm').focus()}
+function pick(i){tick();if(!round||round.ended||!running)return;const pos=round.path.indexOf(i);if(pos!==-1){round.path=round.path.slice(0,pos);render();persist();return}if(round.path.length&&!adjacent(round.path[round.path.length-1],i)){status('Выбери клетку рядом с последней, без диагоналей.');return}const sum=round.path.reduce((n,j)=>n+round.cells[j],0)+round.cells[i];if(sum>10){status('Больше 10. Выбери другое число или сними выбор.');return}round.path.push(i);if(sum===10){const won=round.path.slice(),earned=won.length*10;round.score+=earned;round.solved++;won.forEach(j=>round.cells[j]=random());round.path=[];highlight=[];ensureMove();write(bestKey(round),Math.max(round.score,Number(read(bestKey(round)))||0));render();won.forEach(j=>$('board').children[j].classList.add('success'));clearTimeout(toastTimer);$('toast').textContent=`✓ 10! +${earned}`;$('toast').style.display='block';toastTimer=setTimeout(()=>{$('toast').style.display='none'},850);status(`Отлично! +${earned} очков.`);if(round.mode==='normal'&&round.solved>=20)finish()}else{status(`Сумма ${sum}. Осталось ${10-sum}.`);render()}persist()}
+function rules(){pause();if(!$('overlay').hidden)return;focusBefore=document.activeElement;$('rulesModal').hidden=false;document.querySelector('main').setAttribute('inert','');$('closeRules').focus()}
+function closeRules(){$('rulesModal').hidden=true;document.querySelector('main').removeAttribute('inert');if(focusBefore)focusBefore.focus();activate()}
+for(let i=0;i<25;i++){const b=document.createElement('button');b.type='button';b.onclick=()=>pick(i);$('board').appendChild(b)}
+$('start').onclick=start;
+$('resume').onclick=()=>{round=saved($('modeSelect').value);if(round){status('Раунд восстановлен. Продолжай игру.');openGame()}else menuUpdate()};
+$('toMenu').onclick=home;
+$('restart').onclick=()=>{pause();if(window.confirm('Начать заново? Текущий раунд будет сброшен.')){$('modeSelect').value=round.mode;$('timeLimit').value=round.duration;start()}else activate()};
+$('hint').onclick=()=>{tick();if(!round||round.ended||!round.hints)return;round.path=[];ensureMove();highlight=solution();round.hints--;status('Нажимай золотые клетки по номерам: 1, 2, 3…');render();persist()};
+$('clear').onclick=()=>{tick();if(!round||round.ended)return;round.path=[];highlight=[];status('Выбор снят.');render();persist()};
+$('rulesBtn').onclick=rules;$('gameRules').onclick=rules;$('closeRules').onclick=closeRules;
+$('rulesModal').onclick=e=>{if(e.target===$('rulesModal'))closeRules()};
+$('confirm').onclick=()=>{document.querySelector('main').removeAttribute('inert');$('overlay').hidden=true;$('modeSelect').value=round.mode;$('timeLimit').value=round.duration;start()};$('cancel').onclick=home;
+$('modeSelect').onchange=menuUpdate;
+document.addEventListener('keydown',e=>{const modal=!$('rankModal').hidden?$('rankModal'):!$('rulesModal').hidden?$('rulesModal'):!$('overlay').hidden?$('overlay'):null;if(!modal)return;if(e.key==='Escape'){e.preventDefault();modal.id==='rankModal'?closeRank():modal.id==='rulesModal'?closeRules():home()}if(e.key==='Tab'){const buttons=[...modal.querySelectorAll('button, select:not([hidden])')];const i=buttons.indexOf(document.activeElement);e.preventDefault();buttons[(i+(e.shiftKey?-1:1)+buttons.length)%buttons.length].focus()}});
+document.addEventListener('visibilitychange',()=>document.hidden?pause():activate());window.addEventListener('pagehide',pause);window.addEventListener('pageshow',activate);
+setInterval(tick,100);setInterval(()=>{if(running)persist()},1000);menuUpdate();
+
+const ranksKey='collect10.local.leaders.v1';
+function playerName(){return $('playerName').value.trim().slice(0,24)||'Игрок'}
+function rankData(){const d=read(ranksKey);return Array.isArray(d)?d.filter(x=>x&&typeof x.player==='string'&&modes.includes(x.mode)&&Number.isFinite(x.score)&&x.score>=0&&Number.isFinite(x.date)&&Number.isFinite(x.duration)):[]}
+function recordResult(){const player=round.player||playerName(),data=rankData(),category=round.mode==='time'?round.duration:0;const old=data.find(x=>x.player===player&&x.mode===round.mode&&x.duration===category);if(!old||round.score>old.score){const next=data.filter(x=>!(x.player===player&&x.mode===round.mode&&x.duration===category));next.push({player,mode:round.mode,duration:category,score:round.score,date:Date.now()});write(ranksKey,next)}}
+function renderRanks(){const mode=$('rankMode').value,values=new Set([60]);rankData().filter(x=>x.mode==='time').forEach(x=>values.add(x.duration));const configured=Number($('timeLimit').value);if(configured>=10&&configured<=300)values.add(Math.round(configured));const prev=Number($('rankDuration').value)||configured||60;$('rankDuration').replaceChildren();[...values].sort((a,b)=>a-b).forEach(n=>{const option=document.createElement('option');option.value=n;option.textContent=n+' сек';$('rankDuration').append(option)});$('rankDuration').value=values.has(prev)?prev:60;$('rankDuration').hidden=mode!=='time';const duration=mode==='time'?Number($('rankDuration').value):0,rows=rankData().filter(x=>x.mode===mode&&x.duration===duration).sort((a,b)=>b.score-a.score||a.date-b.date);const mine=rows.find(x=>x.player===playerName());$('personalRecord').textContent='Рекорд завершённых раундов — '+playerName()+': '+(mine?mine.score:'пока нет');$('rankRows').replaceChildren();rows.slice(0,20).forEach((x,i)=>{const tr=document.createElement('tr');[i+1,x.player,x.score,new Date(x.date).toLocaleDateString('ru-RU')].forEach(value=>{const td=document.createElement('td');td.textContent=value;tr.append(td)});$('rankRows').append(tr)});$('rankEmpty').hidden=rows.length>0}
+function openRanks(){pause();focusBefore=document.activeElement;$('rankMode').value=$('modeSelect').value;renderRanks();$('rankModal').hidden=false;document.querySelector('main').setAttribute('inert','');$('closeRank').focus()}
+function closeRank(){$('rankModal').hidden=true;document.querySelector('main').removeAttribute('inert');if(focusBefore)focusBefore.focus();activate()}
+$('playerName').value=typeof read('collect10.player')==='string'?read('collect10.player'):'';
+$('playerName').onchange=()=>write('collect10.player',playerName());$('rankBtn').onclick=openRanks;$('closeRank').onclick=closeRank;$('rankMode').onchange=renderRanks;$('rankDuration').onchange=renderRanks;$('rankModal').onclick=e=>{if(e.target===$('rankModal'))closeRank()};
+$('finishInfinity').onclick=()=>{pause();if(round&&round.mode==='infinity'&&!round.ended){if(window.confirm('Завершить раунд и записать результат в таблицу?'))finish();else activate()}};
+</script></body></html>
