@@ -38,6 +38,10 @@ section{margin:8px 0}
 @media(max-width:600px){.action{min-width:140px}.sum{flex-direction:column}.timer{margin-left:0}}
 [hidden]{display:none!important}main{max-width:500px}header{flex-wrap:wrap}.board-wrap{display:block!important}.board{width:100%}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}.stat{background:#1d2541;padding:12px;border-radius:12px}.stat span{display:block;font-size:12px}.stat strong{font-size:24px}.tile{position:relative;cursor:pointer}.tile.hint:after{content:attr(data-order);position:absolute;right:5px;top:3px;font-size:12px;color:#ffcf77}.action{min-height:48px;font:inherit;font-weight:700;touch-action:manipulation}.action:disabled{opacity:.45}button:focus-visible,select:focus-visible{outline:3px solid white;outline-offset:3px}.timer.urgent{color:#ffb4ab;border-color:#ffb4ab}.sum{flex-direction:row}.toast{pointer-events:none}.home-actions{flex-direction:column}.home-actions .action{width:100%}
 .ranking-table{width:100%;border-collapse:collapse;font-size:14px}.ranking-table td,.ranking-table th{padding:10px 5px;border-bottom:1px solid #46567a;text-align:left;overflow-wrap:anywhere}.ranking-table td:nth-child(3){font-weight:700;color:#a3e7c5}.rank-note{color:#cbd6f8;font-size:13px;line-height:1.5}.rank-controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.rank-controls select,.player-input{background:#242f50;color:white;border:1px solid #607298;padding:12px;border-radius:10px;max-width:100%;font:inherit}.player-input{width:100%;margin:8px 0}.dialog{width:min(100%,520px)}
+
+.bottom-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:stretch;width:100%;margin:12px 0 0}
+.bottom-actions>.action{width:100%;min-width:0;min-height:52px;margin:0;display:flex;align-items:center;justify-content:center;padding:12px 8px;line-height:1.35}
+.bottom-actions>#restart,.bottom-actions>#finishInfinity{grid-column:1 / -1}
 </style>
 </head>
 <body>
@@ -76,12 +80,14 @@ section{margin:8px 0}
     <div class="stat"><span>Лучшее</span><strong id="best">0</strong></div>
   </div>
   <div id="status" class="status" role="status" aria-live="polite">Нажми на число, чтобы начать цепочку.</div>
-  <div class="section" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-    <button id="clear" class="action">Снять выбор</button>
-    <button id="hint" class="action">Подсказка · 3</button>
-    <button id="restart" class="action primary">Новая игра</button>
+  <div class="bottom-actions" aria-label="Управление игрой">
+<button id="clear" class="action">Снять выбор</button>
+<button id="hint" class="action">Подсказка · 3</button>
+<button id="restart" class="action primary">Новая игра</button>
+<button id="gameRules" class="action">Как играть</button>
+<button id="toMenu" class="action">Главное меню</button>
+<button id="finishInfinity" class="action" hidden>Завершить и записать результат</button>
   </div>
-  <button id="finishInfinity" class="action" hidden>Завершить и записать результат</button><button id="gameRules" class="action">Как играть</button><button id="toMenu" class="action" style="margin-top:8px;">Главное меню</button>
 </section>
 </main><div id="rulesModal" class="overlay" hidden role="dialog" aria-label="Правила">
   <section class="dialog" aria-labelledby="rulesTitle">
@@ -160,4 +166,25 @@ function closeRank(){$('rankModal').hidden=true;document.querySelector('main').r
 $('playerName').value=typeof read('collect10.player')==='string'?read('collect10.player'):'';
 $('playerName').onchange=()=>write('collect10.player',playerName());$('rankBtn').onclick=openRanks;$('closeRank').onclick=closeRank;$('rankMode').onchange=renderRanks;$('rankDuration').onchange=renderRanks;$('rankModal').onclick=e=>{if(e.target===$('rankModal'))closeRank()};
 $('finishInfinity').onclick=()=>{pause();if(round&&round.mode==='infinity'&&!round.ended){if(window.confirm('Завершить раунд и записать результат в таблицу?'))finish();else activate()}};
-</script></body></html>
+</script>
+<script>
+(function(){
+ var params=new URLSearchParams(location.search);
+ var embedded=window.parent!==window;
+ var legacy=embedded&&window.name.indexOf('fXD')===0;
+ var vkLaunch=embedded||params.has('vk_app_id')||params.has('api_id')||params.has('vk_platform');
+ window.collect10VKStatus={state:vkLaunch?'loading':'standalone',adapter:legacy?'legacy':'bridge'};
+ if(!vkLaunch)return;
+ function report(state){window.collect10VKStatus.state=state;console.info('[Collect10 VK]',state);}
+ var script=document.createElement('script');script.async=true;
+ script.src=legacy?'https://vk.com/js/api/xd_connection.js?2':'https://unpkg.com/@vkontakte/vk-bridge@2.15.12/dist/browser.min.js';
+ var timeout=setTimeout(function(){report('initialization_timeout')},12000);
+ script.onerror=function(){clearTimeout(timeout);report('sdk_load_failed')};
+ script.onload=function(){try{
+ if(legacy){window.VK.init(function(){clearTimeout(timeout);report('ready')},function(){clearTimeout(timeout);report('initialization_failed')},'5.199');}
+ else{window.vkBridge.send('VKWebAppInit').then(function(){clearTimeout(timeout);report('ready')}).catch(function(){clearTimeout(timeout);report('initialization_failed')});}
+ }catch(e){clearTimeout(timeout);report('initialization_failed');console.warn('[Collect10 VK]',e.message)}};
+ document.head.appendChild(script);
+})();
+</script>
+</body></html>
