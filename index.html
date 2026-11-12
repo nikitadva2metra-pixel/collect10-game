@@ -45,6 +45,16 @@ section{margin:8px 0}
 </style>
 </head>
 <body>
+<aside id="vkDiag" style="position:fixed;bottom:0;left:0;right:0;z-index:2147483647;background:#101827;color:white;border-top:2px solid #ffcf77;padding:10px;font:12px/1.5 monospace;max-height:35vh;overflow:auto"><b>Диагностика VK · D1</b><div id="vkDiagText">HTML загружен. Ожидание JavaScript…</div></aside>
+<script>
+(function(){
+var errors=0,resources=0,last='';
+window.addEventListener('error',function(e){if(e.target&&e.target.tagName==='SCRIPT')resources++;else errors++;},true);
+window.addEventListener('unhandledrejection',function(){errors++});
+function update(){var s=window.collect10VKStatus||{};var labels={loading:'Загрузка SDK',standalone:'Прямой запуск, вне VK',ready:'VK подтвердил инициализацию',initialization_timeout:'Нет ответа VK за 12 секунд',sdk_load_failed:'Не удалось загрузить SDK',initialization_failed:'Ошибка инициализации VK'};var q=new URLSearchParams(location.search);var lines=['JavaScript работает','Запуск в iframe: '+(window.parent!==window?'да':'нет'),'Параметры VK: '+(['vk_app_id','api_id','vk_platform'].filter(function(k){return q.has(k)}).join(', ')||'нет'),'Подключение: '+(s.adapter||'ещё не выбрано'),'Состояние: '+(labels[s.state]||'ожидание интеграции'),'VK Bridge загружен: '+(!!window.vkBridge?'да':'нет'),'VK.init доступен: '+(window.VK&&typeof window.VK.init==='function'?'да':'нет'),'Ошибки JavaScript: '+errors+'; загрузки скриптов: '+resources];var text=lines.join('\n');if(text!==last){document.getElementById('vkDiagText').textContent=text;document.getElementById('vkDiagText').style.whiteSpace='pre-wrap';last=text}}
+update();setInterval(update,500);
+})();
+</script>
 <main>
 <header>
   <h1>Собери <span style="color:#a3e7c5">10</span></h1>
